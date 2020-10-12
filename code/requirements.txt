@@ -16,3 +16,4 @@ dash_html_components==1.1.1
 dash_table==4.10.1
 pymysql==0.10.1
 scikit_learn==0.23.2
+umap-learn==0.4.6
