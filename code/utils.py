@@ -61,10 +61,12 @@ def preprocess_text(df,col="text",stemming = False):
     punctuation = string.punctuation
     punctuation.replace(".","")
     for news in df[col]:
+        news = news.lower()
         news = re.sub('[{}]'.format(re.escape("""▶︎►…!"#$%&'(!)*+,/:;<=>?@[\]^_`‚‘{|}~""")), '', news)
         news = re.sub("\d.","",news)
         news = re.sub("\n","",news)
         news = re.sub("                                     "," ",news)
+        news =re.sub("bild.de","",news)
         news =re.sub("\u2009"," ",news)
         news = re.sub("\s–\s"," ",news)
         news = re.sub("\d","",news)
@@ -80,9 +82,10 @@ def preprocess_text(df,col="text",stemming = False):
         news = news.replace('‚',"").replace('\\‘',"")
 
         news = news.replace('“',"")
+        news = news.replace('bild.de',"")
         news = news.replace('\u2005',"")
         news=re.sub("  "," ",news)
-        news = news.lower().rstrip().lstrip()
+        news = news.rstrip().lstrip()
         if stemming:
             news = " ".join([stem.stem(word) for word in news.split()])
             
