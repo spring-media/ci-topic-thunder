@@ -1,5 +1,4 @@
-import fasttext.util
-import nltk, pymysql,string
+import nltk, pymysql,string,os,sys,re
 import pandas as pd
 from sqlalchemy import create_engine
 import matplotlib.pyplot as plt
@@ -11,7 +10,6 @@ import numpy as np
 import seaborn as sns
 from collections import Counter
 from hdbscan import HDBSCAN
-from gensim.models.wrappers import FastText
 from sklearn.cluster import DBSCAN
 from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
 from nltk.stem.snowball import GermanStemmer
@@ -19,9 +17,10 @@ stem = GermanStemmer()
 
 from nltk.tokenize import RegexpTokenizer, TreebankWordTokenizer
 from nltk.stem.cistem import Cistem
-import os,sys,re,string
+
 
 sys.path.append(os.path.dirname(__file__))
+
 with open(os.path.dirname(__file__)+"/german_stopwords_plain.txt") as f:
     STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
     STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
@@ -67,6 +66,8 @@ def preprocess_text(df,col="text",stemming = False):
         news = re.sub("\n","",news)
         news = re.sub("                                     "," ",news)
         news =re.sub("bild.de","",news)
+        news =re.sub("bildplus","",news)
+
         news =re.sub("\u2009"," ",news)
         news = re.sub("\s–\s"," ",news)
         news = re.sub("\d","",news)
@@ -80,6 +81,7 @@ def preprocess_text(df,col="text",stemming = False):
         #news = news.replace("▶︎","")
         news = news.replace('„',"")
         news = news.replace('‚',"").replace('\\‘',"")
+        news = news.replace(u'\xa0', u' ')
 
         news = news.replace('“',"")
         news = news.replace('bild.de',"")
@@ -93,10 +95,26 @@ def preprocess_text(df,col="text",stemming = False):
     return corpus
 
 
+def remove_seo_title_marker(headline,remove_section=False):
+    tmp = headline.replace('bild.de',"")
+    tmp = tmp.replace('Bild.de',"")
+    tmp = tmp.replace('*** BILDplus Inhalt ***',"")
+    tmp = tmp.replace(u'\xa0', u' ')
+    if remove_section:
+        tmp=[wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-2]]
+    else:
+        tmp=[wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-1]]
+    return " ".join(tmp).lstrip().rstrip()
+
+
 
 def load_text_data():
-    return pd.read_csv("./bild_articles.csv",index_col=0)
+    df=pd.read_csv("./bild_articles.csv",index_col=0)
+    df.created_at =pd.to_datetime(df.created_at,dayfirst=True)
+    return df
 
 def get_sentences_from_text(text):
     return [s.rstrip().lstrip() for s in text.split(".") if s]
 
+
+        
