@@ -5,6 +5,8 @@ Repo for storing code related to topic thunder master thesis project.
 ## Resources:
 #### Articles:
 - Comprehesive overview of documents embeding techniques with lots of references and comparisons:  https://towardsdatascience.com/document-embedding-techniques-fed3e7a6a25d
+- https://supernlp.github.io/2018/11/26/sentreps/
+- ...
 
 
 
