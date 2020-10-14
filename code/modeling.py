@@ -12,20 +12,29 @@ from sentence_transformers import models
 from transformers import AutoModel, AutoTokenizer
 from torch import nn
 
-tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
+#tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
 word_embedding_model = models.Transformer(
     'T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb')
 
-# Apply mean pooling to get one fixed sized sentence vector
-pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-                               pooling_mode_mean_tokens=True,
-                               pooling_mode_cls_token=False,
-                               pooling_mode_max_tokens=True)
 
-# join BERT model and pooling to get the sentence transformer
-model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
+
+def get_sentence_embeddings(array):
+    # Apply mean pooling to get one fixed sized sentence vector
+    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+                                   pooling_mode_mean_tokens=True,
+                                   pooling_mode_cls_token=False,
+                                   pooling_mode_max_tokens=True)
+
+    # join BERT model and pooling to get the sentence transformer
+    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+
+    start_time = time.time()
+    embeddings = model.encode(array,show_progress_bar=True)
+    print("--- Embedding dimension {}".format(embeddings.shape[1]))
+    print("--- %d Documnets encoded %s seconds ---" % (len(array),(time.time() - start_time)))
+    return embeddings
 
 def cluster_and_reduce(embeddings, one_day=False, n_components_clustering=384, **kwargs):
     st = time.time()
@@ -40,7 +49,8 @@ def cluster_and_reduce(embeddings, one_day=False, n_components_clustering=384, *
                                     n_components=n_components_clustering,
                                     metric='cosine', init="random").fit_transform(embeddings)
 
-    params = {"min_cluster_size": 6, "alpha": 0.88, "cluster_selection_epsilon": 0.11
+    params = {"min_cluster_size": 6, "min_samples": 3,
+              "alpha": 0.88, "cluster_selection_epsilon": 0.11
         , "metric": 'euclidean', "min_samples": 3,
               "cluster_selection_method": 'eom', "approx_min_span_tree": True}
 
@@ -57,7 +67,7 @@ def cluster_and_reduce(embeddings, one_day=False, n_components_clustering=384, *
     return umap_data, clusters
 
 
-def scatter_plot(result):
+def scatter_plot(result,save_fig=False):
     result["labels"] = result.labels.apply(str)
     fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=["created_at"], color="labels",
                      opacity=0.8)
@@ -66,9 +76,13 @@ def scatter_plot(result):
                                             color='DarkSlateGrey')),
                       selector=dict(mode='markers'))
     fig["layout"].pop("updatemenus")
-    fig.update_layout(
-        height=1000)
-    fig.show()
+
+    if save_fig:
+        fig.update_layout(height=500) # Dumping smaller images for convience 
+        fig.write_html("./tmp_scatter_plot.html")
+    else:
+        fig.update_layout(height=1000)
+        fig.show()
 
 
 def c_tf_idf(documents, m, ngram_range=(1, 1), remove_stop_words=True):

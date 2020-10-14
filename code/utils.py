@@ -127,3 +127,23 @@ def get_sentences_from_text(text):
 
 
         
+# Prepare data
+def link_to_raw_data(data_to_viz,df,cluster_labels):
+
+    result = pd.DataFrame(data_to_viz, columns=['x', 'y','z'])
+    result['labels'] = cluster_labels
+    result['headline'] = df["seo_title"].values
+    result['seo_title'] = df["headline"].values
+    result['text'] = df["text"].values
+    result['id'] = df.index.values
+
+    result['created_at'] = df["created_at"].dt.date.values
+    result.sort_values(by="created_at")
+    result['created_at'] = result.created_at.apply(str)
+    outliers = result.loc[result.labels == -1, :]
+    clustered = result.loc[result.labels != -1, :]
+    print("Outliers: {} | Clustered: {} | {} \n Cluster count: {} ".format(len(outliers),len(clustered),
+                                                                     (len(clustered)/(len(outliers)+len(clustered)))
+                                                                     ,len(clustered.labels.unique())))
+
+    return result
