@@ -113,6 +113,15 @@ def load_text_data():
     df.created_at =pd.to_datetime(df.created_at,dayfirst=True)
     return df
 
+def load_raw_data(path):
+    df=pd.read_csv(path,index_col=0)
+    df.created_at =pd.to_datetime(df.created_at,dayfirst=True)
+    return df
+
+def load_labeled_data():
+    return load_raw_data("./labeled_test_clusters.csv")
+
+
 def get_sentences_from_text(text):
     return [s.rstrip().lstrip() for s in text.split(".") if s]
 
