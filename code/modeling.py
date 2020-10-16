@@ -14,21 +14,19 @@ from torch import nn
 
 #tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
-word_embedding_model = models.Transformer(
-    'T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb')
 
 
-
-
-def get_sentence_embeddings(array):
+def get_sentence_embeddings(array,sbert_worde_embedding_model,pooling_mode_max_tokens=False):
+    
+    
     # Apply mean pooling to get one fixed sized sentence vector
-    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+    pooling_model = models.Pooling(sbert_worde_embedding_model.get_word_embedding_dimension(),
                                    pooling_mode_mean_tokens=True,
                                    pooling_mode_cls_token=False,
-                                   pooling_mode_max_tokens=True)
+                                   pooling_mode_max_tokens=pooling_mode_max_tokens)
 
     # join BERT model and pooling to get the sentence transformer
-    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+    model = SentenceTransformer(modules=[sbert_worde_embedding_model, pooling_model])
 
     start_time = time.time()
     embeddings = model.encode(array,show_progress_bar=True)
@@ -36,17 +34,17 @@ def get_sentence_embeddings(array):
     print("--- %d Documnets encoded %s seconds ---" % (len(array),(time.time() - start_time)))
     return embeddings
 
-def cluster_and_reduce(embeddings, one_day=False, n_components_clustering=384, **kwargs):
+def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_clustering=384, **kwargs):
     st = time.time()
-    umap_data = umap.UMAP(n_neighbors=50, n_components=3, metric='cosine').fit_transform(embeddings)
+    umap_data = umap.UMAP(n_neighbors=n_neighbors, n_components=3, metric='cosine',random_state=0).fit_transform(embeddings)
     print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(n_components_clustering)))
     if len(embeddings) > n_components_clustering:
-        umap_embeddings = umap.UMAP(n_neighbors=15,
-                                    n_components=n_components_clustering,
+        umap_embeddings = umap.UMAP(n_neighbors=n_neighbors,
+                                    n_components=n_components_clustering,random_state=0,
                                     metric='cosine').fit_transform(embeddings)
     else:
-        umap_embeddings = umap.UMAP(n_neighbors=15,
-                                    n_components=n_components_clustering,
+        umap_embeddings = umap.UMAP(n_neighbors=n_neighbors,
+                                    n_components=n_components_clustering,random_state=0,
                                     metric='cosine', init="random").fit_transform(embeddings)
 
     params = {"min_cluster_size": 6, "min_samples": 3,

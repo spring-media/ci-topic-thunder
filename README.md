@@ -6,8 +6,7 @@ Repo for storing code related to topic thunder master thesis project.
 #### Articles:
 - Comprehesive overview of documents embeding techniques with lots of references and comparisons:  https://towardsdatascience.com/document-embedding-techniques-fed3e7a6a25d
 - https://supernlp.github.io/2018/11/26/sentreps/
-- ...
-
+- http://mlexplained.com/2019/01/07/paper-dissected-bert-pre-training-of-deep-bidirectional-transformers-for-language-understanding-explained/
 
 
 #### Papers:
