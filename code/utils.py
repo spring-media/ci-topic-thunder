@@ -1,6 +1,9 @@
 import nltk, pymysql,string,os,sys,re
 import pandas as pd
 from sqlalchemy import create_engine
+import logging
+
+
 import matplotlib.pyplot as plt
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer
@@ -14,9 +17,25 @@ from sklearn.cluster import DBSCAN
 from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
 from nltk.stem.snowball import GermanStemmer
 stem = GermanStemmer()
+import logging
+
 
 from nltk.tokenize import RegexpTokenizer, TreebankWordTokenizer
 from nltk.stem.cistem import Cistem
+from datetime import datetime
+
+def init_logger(name):
+    '''set up training logger.'''
+    logger = logging.getLogger(name)
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO,
+    )
+    h = logging.StreamHandler(sys.stdout)
+    h.flush = sys.stdout.flush
+    logger.addHandler(h)
+    return logger
 
 
 sys.path.append(os.path.dirname(__file__))
@@ -59,7 +78,7 @@ def preprocess_text(df,col="text",stemming = False):
     corpus = []
     punctuation = string.punctuation
     punctuation.replace(".","")
-    for news in df[col]:
+    for news in df[col].values:
         news = news.lower()
         news = re.sub('[{}]'.format(re.escape("""▶︎►…!"#$%&'(!)*+,/:;<=>?@[\]^_`‚‘{|}~""")), '', news)
         news = re.sub("\d.","",news)
@@ -77,8 +96,6 @@ def preprocess_text(df,col="text",stemming = False):
         news = re.sub("\s([A-Za-z])?\.","",news)
 
         news = re.sub('http\S+\s*', '', news)  # remove URLs
-        #news= news.replace('..','.').replace(' . ','.').replace("   "," ")
-        #news = news.replace("▶︎","")
         news = news.replace('„',"")
         news = news.replace('‚',"").replace('\\‘',"")
         news = news.replace(u'\xa0', u' ')
@@ -126,6 +143,12 @@ def get_sentences_from_text(text):
     return [s.rstrip().lstrip() for s in text.split(".") if s]
 
 
+def parse_google_named_entities(json_obj):
+    #Parse objets and deduplicate list of them 
+    parse_named_entity = lambda ne: {"text":ne["name"],"type":ne["type"]}
+    list_of_objects = [parse_named_entity(ne) for ne in json.loads(json_obj)[0]["entities"] if "bild" not in ne["name"].lower() ]
+    return [i for n, i in enumerate(list_of_objects) if i not in list_of_objects[n + 1:]]
+
         
 # Prepare data
 def link_to_raw_data(data_to_viz,df,cluster_labels):
@@ -147,3 +170,40 @@ def link_to_raw_data(data_to_viz,df,cluster_labels):
                                                                      ,len(clustered.labels.unique())))
 
     return result
+
+
+
+def c_tf_idf(documents, m, ngram_range=(1, 1),remove_stop_words=True):
+    if remove_stop_words:
+        def remove_stop_words(doc):
+            for sword in STOPWORDS:
+                doc=doc.replace(sword,"")
+                return doc
+        documents=np.array(list(map(remove_stop_words, documents)))
+    
+    count = CountVectorizer(ngram_range=ngram_range).fit(documents)
+    t = count.transform(documents).toarray()
+    w = t.sum(axis=1)
+    tf = np.divide(t.T, w)
+    sum_t = t.sum(axis=0)
+    idf = np.log(np.divide(m, sum_t)).reshape(-1, 1)
+    tf_idf = np.multiply(tf, idf)
+
+    return tf_idf, count
+  
+def extract_top_n_words_per_topic(tf_idf, count, docs_per_topic, n=20):
+    words = count.get_feature_names()
+    labels = list(docs_per_topic.Topic)
+    tf_idf_transposed = tf_idf.T
+    indices = tf_idf_transposed.argsort()[:, -n:]
+    top_n_words = {label: [(words[j], tf_idf_transposed[i][j]) for j in indices[i]][::-1] for i, label in enumerate(labels)}
+    return top_n_words
+
+def extract_topic_sizes(df):
+    topic_sizes = (df.groupby(['Topic'])
+                     .Doc
+                     .count()
+                     .reset_index()
+                     .rename({"Topic": "Topic", "Doc": "Size"}, axis='columns')
+                     .sort_values("Size", ascending=False))
+    return topic_sizes
