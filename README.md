@@ -1,4 +1,6 @@
 # ci-topic-thunder
+
+![logo](./topic-thunder-logo.jpg)
 Repo for storing code related to topic thunder master thesis project.
 
 
@@ -14,6 +16,15 @@ Repo for storing code related to topic thunder master thesis project.
 - models - models and scripts needed to download them
 - papers - research papers and PDF resources for thesis
 - notebooks - notebooks with exeperiments
+
+
+   
+Syncronising data folder with latest version from S3
+```
+$ cd ./data
+$ ./sync.sh
+``` 
+
 
 
 ## Resources:

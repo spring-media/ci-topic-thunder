@@ -1,16 +1,15 @@
-from sentence_transformers import SentenceTransformer
-import plotly.express as px
-import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.preprocessing import normalize
-import numpy as np
-from modules import utils
-import nltk, re, time, umap
-from hdbscan import HDBSCAN
-from sentence_transformers import models
+import time
+import umap
 
-from transformers import AutoModel, AutoTokenizer
-from torch import nn
+import numpy as np
+import plotly.express as px
+from hdbscan import HDBSCAN
+from sentence_transformers import SentenceTransformer
+from sentence_transformers import models
+from sklearn.feature_extraction.text import CountVectorizer
+
+from modules import utils
+
 
 #tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 

@@ -1,28 +1,19 @@
-import nltk, pymysql,string,os,sys,re
-import pandas as pd
-from sqlalchemy import create_engine
-import logging
+import os
+import re
+import string
+import sys
 
-
-import matplotlib.pyplot as plt
-from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import CountVectorizer
-from germalemma import GermaLemma
-from nltk.util import ngrams
 import numpy as np
-import seaborn as sns
-from collections import Counter
-from hdbscan import HDBSCAN
-from sklearn.cluster import DBSCAN
-from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
+import pandas as pd
 from nltk.stem.snowball import GermanStemmer
+from sklearn.feature_extraction.text import CountVectorizer
+
 stem = GermanStemmer()
 import logging
 
 
-from nltk.tokenize import RegexpTokenizer, TreebankWordTokenizer
-from nltk.stem.cistem import Cistem
-from datetime import datetime
+from nltk.tokenize import TreebankWordTokenizer
+
 
 def init_logger(name):
     '''set up training logger.'''
