@@ -7,7 +7,7 @@ from hdbscan import HDBSCAN
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import models
 from sklearn.feature_extraction.text import CountVectorizer
-
+from sklearn import metrics
 from modules import utils
 
 
@@ -60,7 +60,9 @@ def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_cl
     print(">> Clustering...")
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
     print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
-
+    print(">> Silhouette Coefficient: %0.3f"
+      % metrics.silhouette_score(umap_embeddings, clusters))
+    
     return umap_data, clusters
 
 

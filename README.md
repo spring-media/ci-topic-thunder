@@ -5,7 +5,8 @@ Repo for storing code related to topic thunder master thesis project.
 
 
 ### Auxiliary 
-- MLFlow server : http://ec2-18-192-179-113.eu-central-1.compute.amazonaws.com
+- MLFlow server : http://ec2-18-184-134-25.eu-central-1.compute.amazonaws.com
+    - Credentials: mlflow / mlflow
 - S3 Buckets: 
     - s3://ci-topic-thunder/
     - s3://ci-mlflow-server/
@@ -19,7 +20,7 @@ Repo for storing code related to topic thunder master thesis project.
 
 
    
-Syncronising data folder with latest version from S3
+Syncronising data folder with the latest version of data from S3:
 ```
 $ cd ./data
 $ ./sync.sh
