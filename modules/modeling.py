@@ -36,7 +36,7 @@ def get_sentence_embeddings(array,sbert_worde_embedding_model,pooling_mode_max_t
 def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_clustering=384, **kwargs):
     st = time.time()
     umap_data = umap.UMAP(n_neighbors=n_neighbors, n_components=3, metric='cosine',random_state=0).fit_transform(embeddings)
-    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(n_components_clustering)))
+    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(n_components_clustering)),end="\r")
     if len(embeddings) > n_components_clustering:
         umap_embeddings = umap.UMAP(n_neighbors=n_neighbors,
                                     n_components=n_components_clustering,random_state=0,
@@ -57,12 +57,11 @@ def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_cl
     for (k, v) in kwargs.items():
         params[k] = v
 
-    print(">> Clustering...")
+    print(">> Clustering...",end="\r")
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
-    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
-    print(">> Silhouette Coefficient: %0.3f"
-      % metrics.silhouette_score(umap_embeddings, clusters))
-    
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st),end="\r")
+    print(">> Silhouette Coefficient: {}" .format(metrics.silhouette_score(umap_embeddings, clusters)),end="\r")
+
     return umap_data, clusters
 
 

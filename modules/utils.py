@@ -1,7 +1,7 @@
 import collections
-import os, re, string, sys, logging, json
+import os, re, string, sys, logging, json, sklearn
 
-from sklearn.metrics import v_measure_score, homogeneity_score, completeness_score
+from sklearn.metrics import v_measure_score, homogeneity_score, completeness_score, silhouette_score
 
 sys.path.append("../")
 sys.path.append(os.path.dirname(__file__))
@@ -62,7 +62,7 @@ def preprocess_and_tokenize_text(df, col="text"):
     return corpus
 
 
-def preprocess_articles_for_bert(articles, col="text"):
+def preprocess_articles_for_bert(articles, col="text",lower=False):
     corpus = []
 
     for news in articles[col].values:
@@ -89,6 +89,8 @@ def preprocess_articles_for_bert(articles, col="text"):
         news = re.sub(r" \.  ", ". ", news)
 
         news = news.rstrip().lstrip()
+        if lower:
+            news = news.lower()
         corpus.append(news)
     return corpus
 
@@ -175,7 +177,10 @@ def parse_google_named_entities(json_obj):
 
 # Prepare data
 def link_to_raw_data(data_to_viz, df, cluster_labels):
-    result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
+    if data_to_viz.shape[1] == 3:
+        result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
+    else:
+        result = pd.DataFrame(data_to_viz, columns=['x', 'y'])
     result['labels'] = cluster_labels
     result['headline'] = df["seo_title"].values
     result['seo_title'] = df["headline"].values
@@ -197,7 +202,10 @@ def link_to_raw_data(data_to_viz, df, cluster_labels):
 
 # Prepare data
 def relink_data_after_clustering(data_to_viz, df, cluster_labels):
-    result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
+    if data_to_viz.shape[1] == 3:
+        result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
+    else:
+        result = pd.DataFrame(data_to_viz, columns=['x', 'y'])
     result['topic_number'] = cluster_labels
     result['headline'] = df["headline"].values
     result['seo_title'] = df["seo_title"].values
@@ -277,36 +285,39 @@ def extract_topic_sizes(df, col="Topic"):
     return topic_sizes
 
 
-def mlflow_run_model_eval(mlflow,embeddings,df,max_pooling,min_cluster_size,N_COMPONENTS,alpha,min_samples,n_neighbors):
+def mlflow_run_model_eval(mlflow, embeddings, df, max_pooling, min_cluster_size, N_COMPONENTS, alpha, min_samples,
+                          n_neighbors):
     with mlflow.start_run():
-                        #ctr=0
-        mlflow.log_param(key="max_pooling",value=max_pooling)
-        mlflow.log_param(key="min_cluster_size",value=min_cluster_size)
-        mlflow.log_param(key="N_COMPONENTS",value=N_COMPONENTS)
-        mlflow.log_param(key="alpha",value=alpha)
-        mlflow.log_param(key="min_samples",value=min_samples)
+        # ctr=0
+        mlflow.log_param(key="max_pooling", value=max_pooling)
+        mlflow.log_param(key="min_cluster_size", value=min_cluster_size)
+        mlflow.log_param(key="N_COMPONENTS", value=N_COMPONENTS)
+        mlflow.log_param(key="alpha", value=alpha)
+        mlflow.log_param(key="min_samples", value=min_samples)
 
-        mlflow.log_param(key="n_neighbors",value=n_neighbors)
+        mlflow.log_param(key="n_neighbors", value=n_neighbors)
 
-        results,cluster_labels = modeling.cluster_and_reduce(embeddings,n_components_clustering=N_COMPONENTS,
-                                                             min_cluster_size=min_cluster_size,n_neighbors=n_neighbors,
-                                                             min_samples= min_samples,alpha=alpha)
-        mlflow.log_metric(key="completeness_score", value=completeness_score(cluster_labels,y.values))
-        mlflow.log_metric(key="v_measure_score", value=v_measure_score(cluster_labels,y.values))
-        mlflow.log_metric(key="homogeneity_score", value=homogeneity_score(cluster_labels,y.values))
-        mlflow.log_metric(key="normalized_mutual_info_score", value=v_measure_score(cluster_labels,y.values))
+        results, cluster_labels = modeling.cluster_and_reduce(embeddings, n_components_clustering=N_COMPONENTS,
+                                                              min_cluster_size=min_cluster_size,
+                                                              n_neighbors=n_neighbors,
+                                                              min_samples=min_samples, alpha=alpha)
+        mlflow.log_metric(key="completeness_score", value=completeness_score(cluster_labels, y.values))
+        mlflow.log_metric(key="v_measure_score", value=v_measure_score(cluster_labels, y.values))
+        mlflow.log_metric(key="homogeneity_score", value=homogeneity_score(cluster_labels, y.values))
+        mlflow.log_metric(key="normalized_mutual_info_score", value=v_measure_score(cluster_labels, y.values))
 
         summarized_clusters = dict(collections.Counter(cluster_labels))
         try:
-            mlflow.log_metric(key="outliers_ratio", value=(summarized_clusters[-1]/len(cluster_labels)))
-        except Exception as err:
+            mlflow.log_metric(key="outliers_ratio", value=(summarized_clusters[-1] / len(cluster_labels)))
+        except ZeroDivisionError as err:
             mlflow.log_metric(key="outliers_ratio", value=0)
 
-        mlflow.log_metric(key="unique_cluters", value=len(summarized_clusters.items()))
-        mlflow.log_metric(key="cluters_ratio_to_GT", value=(len(summarized_clusters.items())-1)/len(y_summarized_clusters.items()))
-        #mlflow.log_metric(key="silhuette_score", value=silhouette_score(_X,cluster_labels))
+        mlflow.log_metric(key="unique_clusters", value=len(summarized_clusters.items()))
+        # mlflow.log_metric(key="cluters_ratio_to_GT",
+        #                   value=(len(summarized_clusters.items()) - 1) / len(y_summarized_clusters.items()))
+        mlflow.log_metric(key="silhuette_score", value=silhouette_score(_X, cluster_labels))
 
-        results = link_to_raw_data(results,df,cluster_labels)
+        results = link_to_raw_data(results, df, cluster_labels)
 
-        modeling.scatter_plot(results,save_fig=True)
+        modeling.scatter_plot(results, save_fig=True)
         mlflow.log_artifact("./tmp_scatter_plot.html")
