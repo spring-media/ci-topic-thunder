@@ -10,14 +10,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn import metrics
 from modules import utils
 
-
-#tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
-
+# tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
 
-def get_sentence_embeddings(array,sbert_worde_embedding_model,pooling_mode_max_tokens=False):
-    
-    
+def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max_tokens=False):
     # Apply mean pooling to get one fixed sized sentence vector
     pooling_model = models.Pooling(sbert_worde_embedding_model.get_word_embedding_dimension(),
                                    pooling_mode_mean_tokens=True,
@@ -28,22 +24,62 @@ def get_sentence_embeddings(array,sbert_worde_embedding_model,pooling_mode_max_t
     model = SentenceTransformer(modules=[sbert_worde_embedding_model, pooling_model])
 
     start_time = time.time()
-    embeddings = model.encode(array,show_progress_bar=True)
+    embeddings = model.encode(array, show_progress_bar=True)
     print("--- Embedding dimension {}".format(embeddings.shape[1]))
-    print("--- %d Documnets encoded %s seconds ---" % (len(array),(time.time() - start_time)))
+    print("--- %d Documnets encoded %s seconds ---" % (len(array), (time.time() - start_time)))
     return embeddings
 
-def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_clustering=384, **kwargs):
+
+def umap_and_cluster(embeddings, **kwargs):
+    embeddings = np.load("../data/embeddings.npy")
+    print("Loading UMAP model...")
+    start_time = time.time()
+    print(len(embeddings))
+    fitted_umap_viz = umap.UMAP(n_neighbors=30, n_components=2, random_state=0, metric='cosine').fit(embeddings[:10000])
+
+    fitted_umap_clustering = umap.UMAP(n_neighbors=6, min_dist=0.01, random_state=0, metric='cosine',
+                                       n_components=128).fit(
+        embeddings[:10000])
+
+    print("--- Umap Loaded in %s seconds ---" % (time.time() - start_time))
+
     st = time.time()
-    umap_data = umap.UMAP(n_neighbors=n_neighbors, n_components=3, metric='cosine',random_state=0).fit_transform(embeddings)
-    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(n_components_clustering)),end="\r")
+    umap_data = fitted_umap_viz.transform(embeddings)
+    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(128)),
+          end="\r")
+
+    umap_embeddings = fitted_umap_clustering.transform(embeddings)
+
+    params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 0.78, "cluster_selection_epsilon": 0.1,
+              "allow_single_cluster": True,
+              "metric": 'euclidean',
+              "cluster_selection_method": 'eom',
+              "approx_min_span_tree": True}
+
+    for (k, v) in kwargs.items():
+        params[k] = v
+
+    print(">> Clustering...", end="\r")
+    clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
+    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
+
+    return umap_data, clusters
+
+
+def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_clustering=384, **kwargs):
+    st = time.time()
+    umap_data = umap.UMAP(n_neighbors=n_neighbors, n_components=3, metric='cosine', random_state=0).fit_transform(
+        embeddings)
+    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(n_components_clustering)),
+          end="\r")
     if len(embeddings) > n_components_clustering:
         umap_embeddings = umap.UMAP(n_neighbors=n_neighbors,
-                                    n_components=n_components_clustering,random_state=0,
+                                    n_components=n_components_clustering, random_state=0,
                                     metric='cosine').fit_transform(embeddings)
     else:
         umap_embeddings = umap.UMAP(n_neighbors=n_neighbors,
-                                    n_components=n_components_clustering,random_state=0,
+                                    n_components=n_components_clustering, random_state=0,
                                     metric='cosine', init="random").fit_transform(embeddings)
 
     params = {"min_cluster_size": 6, "min_samples": 3,
@@ -51,21 +87,18 @@ def cluster_and_reduce(embeddings, one_day=False,n_neighbors=15, n_components_cl
         , "metric": 'euclidean', "min_samples": 3,
               "cluster_selection_method": 'eom', "approx_min_span_tree": True}
 
-    if one_day:
-        params["min_cluster_size"] = 3
-
     for (k, v) in kwargs.items():
         params[k] = v
 
-    print(">> Clustering...",end="\r")
+    print(">> Clustering...", end="\r")
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
-    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st),end="\r")
-    print(">> Silhouette Coefficient: {}" .format(metrics.silhouette_score(umap_embeddings, clusters)),end="\r")
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
+    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
 
     return umap_data, clusters
 
 
-def scatter_plot(result,save_fig=False):
+def scatter_plot(result, save_fig=False):
     result["labels"] = result.labels.apply(str)
     fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=["created_at"], color="labels",
                      opacity=0.8)
@@ -76,7 +109,7 @@ def scatter_plot(result,save_fig=False):
     fig["layout"].pop("updatemenus")
 
     if save_fig:
-        fig.update_layout(height=500) # Dumping smaller images for convience 
+        fig.update_layout(height=500)  # Dumping smaller images for convience
         fig.write_html("./tmp_scatter_plot.html")
     else:
         fig.update_layout(height=1000)

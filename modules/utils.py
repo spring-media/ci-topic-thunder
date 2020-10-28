@@ -62,29 +62,42 @@ def preprocess_and_tokenize_text(df, col="text"):
     return corpus
 
 
-def preprocess_articles_for_bert(articles, col="text",lower=False):
+def preprocess_articles_for_bert(articles, col="text", lower=False):
     corpus = []
 
     for news in articles[col].values:
-        news = re.sub('[{}]'.format(re.escape(r'–„▶︎►…"#$%&(!)*+/:;<=>?@[\]^_`‚‘{|}~\'')), '', news)
+        news = re.sub(r" \(\d+\)", "", news)  # Numbers in brackets ie ages
+        news = re.sub(r"\d+:+\d+-", "", news) # Remove scores from i.e 2:3-Sieg
+        news = re.sub(r"\(+\d+:+\d\)+", "", news)  # Scores in brackets
+
+        news = re.sub('[{}]'.format(re.escape(r'–„▶︎►…"$%&()*+:;<=>[\]^_`‚‘{|}~\'')), '', news)
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
-        news = re.sub(r"\d.", "", news)
+
+
+        #news = re.sub(r"\?", ".", news) # ?
+        #news = re.sub(r"!", ".", news) # !
+
+
         news = re.sub(r"\n", "", news)
         news = re.sub("                                     ", " ", news)
         news = re.sub(r"\.\.\.", ".", news)
         news = re.sub(r"(?:\s+)(-)", "", news)  # nextline moving
         news = re.sub(r'http\S+\s*', '', news)  # remove URLs
         news = news.replace(u'\xa0', u' ')
-        news = news.replace('“', "")
+
+        # news = news.replace('“', "")
+        # news = news.replace('„', "")
+
         news = news.replace('\u2005', "")
-        news = re.sub("\u2009", " ", news)
+        news = re.sub("\u2009", " ", news) # remove weird unicode chars
         news = news.replace('', "")
-        news = news.replace('‚', "").replace('\\‘', "")
+        # news = news.replace('‚', "").replace('\\‘', "")
         news = news.replace(' . ', ". ")
         news = news.replace('. ', ". ")
+        news = re.sub(r'(\w+)(\/)(\w+)', "\g<1> \g<3>", news)
 
-        news = re.sub("  ", " ", news)
+        news = re.sub("  ", " ", news)  # Remove doube spaces
         news = re.sub(r"\.\.", ".", news)
         news = re.sub(r" \.  ", ". ", news)
 
