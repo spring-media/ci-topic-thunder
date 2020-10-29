@@ -67,17 +67,15 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
 
     for news in articles[col].values:
         news = re.sub(r" \(\d+\)", "", news)  # Numbers in brackets ie ages
-        news = re.sub(r"\d+:+\d+-", "", news) # Remove scores from i.e 2:3-Sieg
+        news = re.sub(r"\d+:+\d+-", "", news)  # Remove scores from i.e 2:3-Sieg
         news = re.sub(r"\(+\d+:+\d\)+", "", news)  # Scores in brackets
 
         news = re.sub('[{}]'.format(re.escape(r'–„▶︎►…"$%&()*+:;<=>[\]^_`‚‘{|}~\'')), '', news)
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
 
-
-        #news = re.sub(r"\?", ".", news) # ?
-        #news = re.sub(r"!", ".", news) # !
-
+        # news = re.sub(r"\?", ".", news) # ?
+        # news = re.sub(r"!", ".", news) # !
 
         news = re.sub(r"\n", "", news)
         news = re.sub("                                     ", " ", news)
@@ -90,7 +88,7 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         # news = news.replace('„', "")
 
         news = news.replace('\u2005', "")
-        news = re.sub("\u2009", " ", news) # remove weird unicode chars
+        news = re.sub("\u2009", " ", news)  # remove weird unicode chars
         news = news.replace('', "")
         # news = news.replace('‚', "").replace('\\‘', "")
         news = news.replace(' . ', ". ")

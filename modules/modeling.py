@@ -9,7 +9,7 @@ from sentence_transformers import models
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn import metrics
 from modules import utils
-
+import pickle
 # tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
 
@@ -30,18 +30,26 @@ def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max
     return embeddings
 
 
-def umap_and_cluster(embeddings, **kwargs):
-    embeddings = np.load("../data/embeddings.npy")
-    print("Loading UMAP model...")
+def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-comps.pkl", **kwargs):
+    """
+    This function takes embeddings, and computes two dimensional projection ready to be vizualized,
+    :param embeddings:
+    :param kwargs:
+    :return:
+    """
+    # Load the Model back from file
     start_time = time.time()
-    print(len(embeddings))
-    fitted_umap_viz = umap.UMAP(n_neighbors=30, n_components=2, random_state=0, metric='cosine').fit(embeddings[:10000])
 
-    fitted_umap_clustering = umap.UMAP(n_neighbors=6, min_dist=0.01, random_state=0, metric='cosine',
-                                       n_components=128).fit(
-        embeddings[:10000])
+    viz_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/umap_viz_10_30-neighbors.pkl"
+    dim_reduction_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/"+umap_model
 
-    print("--- Umap Loaded in %s seconds ---" % (time.time() - start_time))
+    with open(viz_model_path, 'rb') as file:
+        fitted_umap_viz = pickle.load(file)
+
+    with open(dim_reduction_model_path, 'rb') as file:
+        fitted_umap_clustering = pickle.load(file)
+
+    print("--- UMAP Loaded in %s seconds ---" % (time.time() - start_time))
 
     st = time.time()
     umap_data = fitted_umap_viz.transform(embeddings)
@@ -63,7 +71,7 @@ def umap_and_cluster(embeddings, **kwargs):
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
     print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
     print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
-
+    print(params)
     return umap_data, clusters
 
 
@@ -84,7 +92,7 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
 
     params = {"min_cluster_size": 6, "min_samples": 3,
               "alpha": 0.88, "cluster_selection_epsilon": 0.11
-        , "metric": 'euclidean', "min_samples": 3,
+        , "metric": 'euclidean',
               "cluster_selection_method": 'eom', "approx_min_span_tree": True}
 
     for (k, v) in kwargs.items():
@@ -99,7 +107,11 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
 
 
 def scatter_plot(result, save_fig=False):
-    result["labels"] = result.labels.apply(str)
+    if "labels" in result.columns.to_list():
+        result["labels"] = result.labels.apply(str)
+    elif "topic_number" in result:
+        result["labels"] = result.topic_number.apply(str)
+
     fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=["created_at"], color="labels",
                      opacity=0.8)
     fig.update_traces(marker=dict(size=9,
