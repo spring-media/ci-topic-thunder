@@ -14,6 +14,13 @@ import pickle
 
 
 def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max_tokens=False):
+    """
+        This function takes array of (preprocessed) sentence embeddings, a model and one paramter and returns the embeddings
+    :param array:
+    :param sbert_worde_embedding_model:
+    :param pooling_mode_max_tokens:
+    :return:
+    """
     # Apply mean pooling to get one fixed sized sentence vector
     pooling_model = models.Pooling(sbert_worde_embedding_model.get_word_embedding_dimension(),
                                    pooling_mode_mean_tokens=True,
@@ -32,7 +39,8 @@ def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max
 
 def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-comps.pkl", **kwargs):
     """
-    This function takes embeddings, and computes two dimensional projection ready to be vizualized,
+    This function takes embeddings, loads the given pretrained UMAP model and computes the two dimensional projection
+    $ready to be vizualized,
     :param embeddings:
     :param kwargs:
     :return:
@@ -58,6 +66,7 @@ def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-com
 
     umap_embeddings = fitted_umap_clustering.transform(embeddings)
 
+    # Overriding default parameters
     params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 0.78, "cluster_selection_epsilon": 0.1,
               "allow_single_cluster": True,
               "metric": 'euclidean',
@@ -71,7 +80,6 @@ def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-com
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
     print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
     print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
-    print(params)
     return umap_data, clusters
 
 
@@ -126,6 +134,14 @@ def scatter_plot(result, save_fig=False):
     else:
         fig.update_layout(height=1000)
         fig.show()
+
+
+
+################################
+
+# Legacy functions below 
+
+################################
 
 
 def c_tf_idf(documents, m, ngram_range=(1, 1), remove_stop_words=True):

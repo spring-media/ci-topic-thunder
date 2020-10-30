@@ -1,23 +1,23 @@
-import collections
-import os, re, string, sys, logging, json, sklearn
-
-from sklearn.metrics import v_measure_score, homogeneity_score, completeness_score, silhouette_score
+import collections, json, logging, os, re, string, sys
 
 sys.path.append("../")
 sys.path.append(os.path.dirname(__file__))
+
 from modules import modeling
+
 import numpy as np
 import pandas as pd
 from nltk.stem.snowball import GermanStemmer
-from sklearn.feature_extraction.text import CountVectorizer
-
-stem = GermanStemmer()
-
 from nltk.tokenize import TreebankWordTokenizer
 
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import v_measure_score, homogeneity_score, completeness_score, silhouette_score
+
+
+# Here in this file we store all the utility functions for loading and preparing the data .
 
 def init_logger(name):
-    '''set up training logger.'''
+    '''set up training logger. Not used so far'''
     logger = logging.getLogger(name)
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -30,39 +30,29 @@ def init_logger(name):
     return logger
 
 
+""" Here we pre-load big chunk of german stopwords.  """
 with open(os.path.dirname(__file__) + "/german_stopwords_plain.txt") as f:
     STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
     STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
                   "heißt", "heißen", "müsse", "prozent", "BILD", "etwas"]
     STOPWORDS = set(STOPWORDS)
-
 print("Number of stopwords {}".format(len(STOPWORDS)))
-
-tokenizer = TreebankWordTokenizer()  # RegexpTokenizer(r'\w+')
-
-
-def preprocess_and_tokenize_text(df, col="text"):
-    corpus = []
-    punctuation = string.punctuation
-    punctuation.remove(".")
-
-    for news in df[col]:
-        words = []
-        news = re.sub('[%s]' % re.escape(r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""), '', news)
-        news = [''.join(c for c in s if c not in punctuation) for s in news]
-        news = re.sub(r"^\d+\s|\s\d+\s|\s\d+$", " ", news)
-        news = re.sub(r'http\S+\s*', '', news)  # remove URLs
-        news = re.sub(r'\b\d+\b', '', news)
-
-        for w in tokenizer.tokenize(news):
-            if (w not in STOPWORDS) and (not w.isdigit()) and (w.isalpha()) and len(w) > 1:
-                w = stem.stem(w)
-                words.append(w)
-        corpus.append(words)
-    return corpus
 
 
 def preprocess_articles_for_bert(articles, col="text", lower=False):
+    """
+    Main text preprocessing function used to preprare article text for the SentenceBert.
+    It does not process the article in a hard way. Instead, it removes double spaces, wierd characters, unencoded HTML tags, trilple dots.
+        Football scores like (2:2) and 3:0-Sieg are removed
+        Bild and bild plus references are removed.
+        Double words i.e Potsdam/Brandenburg are split
+        Bild references are removed
+
+    :param articles: DataFrame with articles
+    :param col: Which column contains the article text
+    :param lower: Should we lower at the end?
+    :return:
+    """
     corpus = []
 
     for news in articles[col].values:
@@ -73,27 +63,31 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub('[{}]'.format(re.escape(r'–„▶︎►…"$%&()*+:;<=>[\]^_`‚‘{|}~\'')), '', news)
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
+        news = re.sub("bild plus", "", news, flags=re.IGNORECASE)
 
         # news = re.sub(r"\?", ".", news) # ?
         # news = re.sub(r"!", ".", news) # !
 
-        news = re.sub(r"\n", "", news)
+        news = re.sub(r"\n", "", news)  # Remove newlines
         news = re.sub("                                     ", " ", news)
         news = re.sub(r"\.\.\.", ".", news)
         news = re.sub(r"(?:\s+)(-)", "", news)  # nextline moving
         news = re.sub(r'http\S+\s*', '', news)  # remove URLs
+        news = re.sub(r'^\$[0-9]+(\.[0-9][0-9])?$', '', news)  # remove dollar prefixed numbers
+        news = re.sub(r'^[0-9]+(\.[0-9][0-9])?\€', '', news)  # remove dollar prefixed numbers
         news = news.replace(u'\xa0', u' ')
+        news = news.replace(u'€', u'EURO')
 
         # news = news.replace('“', "")
         # news = news.replace('„', "")
 
-        news = news.replace('\u2005', "")
+        news = news.replace('\u2005', "")  # Re
         news = re.sub("\u2009", " ", news)  # remove weird unicode chars
         news = news.replace('', "")
-        # news = news.replace('‚', "").replace('\\‘', "")
-        news = news.replace(' . ', ". ")
-        news = news.replace('. ', ". ")
-        news = re.sub(r'(\w+)(\/)(\w+)', "\g<1> \g<3>", news)
+
+        news = news.replace(' . ', ". ")  # Unnecessary spaces
+        news = news.replace('. ', ". ")  # Unnecessary spaces
+        news = re.sub(r'(\w+)(\/)(\w+)', "\g<1> \g<3>", news)  # Double words i.e Potsdam/Brandenburg are split
 
         news = re.sub("  ", " ", news)  # Remove doube spaces
         news = re.sub(r"\.\.", ".", news)
@@ -109,6 +103,7 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
 def preprocess_text(df, col="text", stemming=False):
     corpus = []
     punctuation = string.punctuation
+    stem = GermanStemmer()
     punctuation.replace(".", "")  # Remove Dot from the punctuation list so it wont be removed from the articles.
     for news in df[col].values:
         news = news.lower()
@@ -144,6 +139,12 @@ def preprocess_text(df, col="text", stemming=False):
 
 
 def remove_seo_title_marker(headline, remove_section=False):
+    """
+    This function removes the suffix category tag from the seo_title.
+    :param headline:
+    :param remove_section:
+    :return:
+    """
     tmp = headline.replace('bild.de', "")
     tmp = tmp.replace('Bild.de', "")
     tmp = tmp.replace('*** BILDplus Inhalt ***', "")
@@ -155,13 +156,19 @@ def remove_seo_title_marker(headline, remove_section=False):
     return " ".join(tmp).lstrip().rstrip()
 
 
-def load_text_data(path="../data/bild_articles.csv"):
+def load_text_data(path: str = "../data/bild_articles.csv") -> pd.DataFrame:
+    """
+    This function load the bild articles from the file.
+    :param path:
+    :return:
+    """
     try:
         df = pd.read_csv(path, index_col=0)
         df.created_at = pd.to_datetime(df.created_at, dayfirst=True)
         return df
     except FileNotFoundError as err:
         print("Could not find {}".format(path))
+        return None
 
 
 def load_raw_data(path):
@@ -170,7 +177,12 @@ def load_raw_data(path):
     return df
 
 
-def load_labeled_data(path="../data/labeled_test_clusters.csv"):
+def load_labled_data(path="../data/labeled_test_clusters.csv"):
+    """
+    Load the labeled data from the csv
+    :param path:
+    :return:
+    """
     return load_raw_data(path)
 
 
@@ -178,16 +190,16 @@ def get_sentences_from_text(text):
     return [s.rstrip().lstrip() for s in text.split(".") if s]
 
 
-def parse_google_named_entities(json_obj):
-    # Parse objets and deduplicate list of them
-    parse_named_entity = lambda ne: {"text": ne["name"], "type": ne["type"]}
-    list_of_objects = [parse_named_entity(ne) for ne in json.loads(json_obj)[0]["entities"] if
-                       "bild" not in ne["name"].lower()]
-    return [i for n, i in enumerate(list_of_objects) if i not in list_of_objects[n + 1:]]
-
-
 # Prepare data
 def link_to_raw_data(data_to_viz, df, cluster_labels):
+    """
+    This function will link the article embeddings with the other attributes like headline or seo_title.
+    Part of post processing of article embeddings after dimensionality reduction
+    :param data_to_viz:
+    :param df:
+    :param cluster_labels:
+    :return:
+    """
     if data_to_viz.shape[1] == 3:
         result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
     else:
@@ -213,6 +225,14 @@ def link_to_raw_data(data_to_viz, df, cluster_labels):
 
 # Prepare data
 def relink_data_after_clustering(data_to_viz, df, cluster_labels):
+    """
+        This function will link the article embeddings with the other attributes like headline or seo_title.
+    Part of post processing of article embeddings after dimensionality reduction
+    :param data_to_viz:
+    :param df:
+    :param cluster_labels:
+    :return:
+    """
     if data_to_viz.shape[1] == 3:
         result = pd.DataFrame(data_to_viz, columns=['x', 'y', 'z'])
     else:
@@ -246,6 +266,12 @@ dedupe = lambda list_of_objects: [i for n, i in enumerate(list_of_objects) if
 
 
 def parse_google_named_entities(json_obj, deduplicate=False):
+    """
+    This function takes a JSON objets read from the database, parse, possibly deduplicate  and return as a list of objects
+    :type json_obj: str
+    :param deduplicate: bool
+    :return:
+    """
     # Parse objets and deduplicate list of them
     parse_named_entity = lambda ne: {"text": ne["name"], "type": ne["type"]}
     list_of_objects = [parse_named_entity(ne) for ne in json.loads(json_obj)[0]["entities"] if
@@ -254,6 +280,11 @@ def parse_google_named_entities(json_obj, deduplicate=False):
         return dedupe(list_of_objects)
     else:
         return list_of_objects
+
+
+#######################################################################################################################################################################
+######### BELOW LEGACY METHODS TO KEEP OLD EXPERIMENTS RUNNING ###################################
+#######################################################################################################################################################################
 
 
 def c_tf_idf(documents, m, ngram_range=(1, 1), remove_stop_words=True):
@@ -294,6 +325,29 @@ def extract_topic_sizes(df, col="Topic"):
                    .rename({"Topic": "Topic", "Doc": "Size"}, axis='columns')
                    .sort_values("Size", ascending=False))
     return topic_sizes
+
+
+def preprocess_and_tokenize_text(df, col="text"):
+    corpus = []
+    punctuation = string.punctuation
+    punctuation.remove(".")
+    tokenizer = TreebankWordTokenizer()  # RegexpTokenizer(r'\w+')
+    stem = GermanStemmer()
+
+    for news in df[col]:
+        words = []
+        news = re.sub('[%s]' % re.escape(r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""), '', news)
+        news = [''.join(c for c in s if c not in punctuation) for s in news]
+        news = re.sub(r"^\d+\s|\s\d+\s|\s\d+$", " ", news)
+        news = re.sub(r'http\S+\s*', '', news)  # remove URLs
+        news = re.sub(r'\b\d+\b', '', news)
+
+        for w in tokenizer.tokenize(news):
+            if (w not in STOPWORDS) and (not w.isdigit()) and (w.isalpha()) and len(w) > 1:
+                w = stem.stem(w)
+                words.append(w)
+        corpus.append(words)
+    return corpus
 
 
 def mlflow_run_model_eval(mlflow, embeddings, df, max_pooling, min_cluster_size, N_COMPONENTS, alpha, min_samples,
