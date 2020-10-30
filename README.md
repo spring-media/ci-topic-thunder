@@ -4,6 +4,9 @@
 Repo for storing code related to topic thunder master thesis project.
 
 
+## Prototype
+![Prototype](./Topic_thunder.png)
+
 ### Auxiliary 
 - MLFlow server : http://ec2-18-184-134-25.eu-central-1.compute.amazonaws.com
     - Credentials: mlflow / mlflow
@@ -17,6 +20,7 @@ Repo for storing code related to topic thunder master thesis project.
 - models - models and scripts needed to download them
 - papers - research papers and PDF resources for thesis
 - notebooks - notebooks with experiments
+
 
 
 ```
@@ -35,6 +39,8 @@ $ ./sync.sh
 
 ## Resources:
 #### Articles:
+- Papers with code: Sentence Emebddings - https://paperswithcode.com/task/sentence-embeddings
+
 - SentenceBERT TLDR - https://medium.com/dair-ai/tl-dr-sentencebert-8dec326daf4e 
 - BERTopics - https://towardsdatascience.com/topic-modeling-with-bert-779f7db187e6
 - Comprehesive overview of documents embeding techniques with lots of references and comparisons:  https://towardsdatascience.com/document-embedding-techniques-fed3e7a6a25d
