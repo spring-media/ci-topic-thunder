@@ -30,13 +30,14 @@ def init_logger(name):
     return logger
 
 
-""" Here we pre-load big chunk of german stopwords.  """
-with open(os.path.dirname(__file__) + "/german_stopwords_plain.txt") as f:
-    STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
-    STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
-                  "heißt", "heißen", "müsse", "prozent", "BILD", "etwas"]
-    STOPWORDS = set(STOPWORDS)
-print("Number of stopwords {}".format(len(STOPWORDS)))
+def load_stopwords():
+    with open(os.path.dirname(__file__) + "/german_stopwords_plain.txt") as f:
+        STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
+        STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
+                      "heißt", "heißen", "müsse", "prozent", "BILD", "etwas"]
+        STOPWORDS = set(STOPWORDS)
+    print("Number of stopwords {}".format(len(STOPWORDS)))
+    return STOPWORDS
 
 
 def preprocess_articles_for_bert(articles, col="text", lower=False):
@@ -60,40 +61,51 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub(r"\d+:+\d+-", "", news)  # Remove scores from i.e 2:3-Sieg
         news = re.sub(r"\(+\d+:+\d\)+", "", news)  # Scores in brackets
 
-        news = re.sub('[{}]'.format(re.escape(r'–„▶︎►…"$%&()*+:;<=>[\]^_`‚‘{|}~\'')), '', news)
+        # Drop Weird characters
+        news = re.sub('[{}]'.format(re.escape(r'–•™©®●▶︎►…"$%&()*œ†¥+:;µ≤≥æ«‘π<=>[\]^_`‚‘{|}~\'')), '', news)
+
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
         news = re.sub("bild plus", "", news, flags=re.IGNORECASE)
+        # news = re.sub(r"ß", "ss", news)  # Remove ß
 
         # news = re.sub(r"\?", ".", news) # ?
-        # news = re.sub(r"!", ".", news) # !
+        news = re.sub(r"\!", ".", news)  # !
 
         news = re.sub(r"\n", "", news)  # Remove newlines
-        news = re.sub("                                     ", " ", news)
-        news = re.sub(r"\.\.\.", ".", news)
+
+        for x in range(3, 20, 1):
+            news = re.sub(" " * x, " ", news)  # Remove 3,4,5...20 consecutive spaces
+
+        news = re.sub(r"\.\.\.", ".", news)  # Replace three dots
         news = re.sub(r"(?:\s+)(-)", "", news)  # nextline moving
         news = re.sub(r'http\S+\s*', '', news)  # remove URLs
         news = re.sub(r'^\$[0-9]+(\.[0-9][0-9])?$', '', news)  # remove dollar prefixed numbers
-        news = re.sub(r'^[0-9]+(\.[0-9][0-9])?\€', '', news)  # remove dollar prefixed numbers
-        news = news.replace(u'\xa0', u' ')
-        news = news.replace(u'€', u'EURO')
+        news = re.sub(r'^[0-9]+(\.[0-9][0-9])?\€', '', news)  # remove euro prefixed numbers
 
-        # news = news.replace('“', "")
-        # news = news.replace('„', "")
+        news = news.replace(u' €', u' EURO')
+        news = news.replace(u' £', u' POUNDS')
+        news = news.replace(u' $', u' POUNDS')
 
-        news = news.replace('\u2005', "")  # Re
+        news = news.replace('“', "")
+        news = news.replace('„', "")
+
+        news = news.replace('\xa0', '')
+        news = news.replace('\xad', '')
+        news = news.replace('\u00ad', '')
+        news = news.replace('\u2005', "")  # Remove some unicode characters
         news = re.sub("\u2009", " ", news)  # remove weird unicode chars
-        news = news.replace('', "")
 
-        news = news.replace(' . ', ". ")  # Unnecessary spaces
+        news = news.replace(' . ', ". ")  # Unnecessary spaces 
         news = news.replace('. ', ". ")  # Unnecessary spaces
-        news = re.sub(r'(\w+)(\/)(\w+)', "\g<1> \g<3>", news)  # Double words i.e Potsdam/Brandenburg are split
+        news = re.sub(r'(\w+)(\/)(\w+)', r"\g<1> \g<3>", news)  # Double words i.e Potsdam/Brandenburg are split
 
-        news = re.sub("  ", " ", news)  # Remove doube spaces
+        news = re.sub(" {2}", " ", news)  # Remove doube spaces
         news = re.sub(r"\.\.", ".", news)
-        news = re.sub(r" \.  ", ". ", news)
+        news = re.sub(r" \. {2}", ". ", news)
 
         news = news.rstrip().lstrip()
+
         if lower:
             news = news.lower()
         corpus.append(news)
@@ -122,7 +134,10 @@ def preprocess_text(df, col="text", stemming=False):
 
         news = re.sub(r"\s([A-Za-z])?\.", "", news)
 
-        news = re.sub(r'http\S+\s*', '', news)  # remove URLs
+        news = re.sub(
+            r'(https?:\/\/)?(www\.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)|('
+            r'https?:\/\/)?(www\.)?(?!ww)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)',
+            'link', news)  # remove URLs
         news = news.replace('„', "")
         news = news.replace('‚', "").replace('\\‘', "")
         news = news.replace(u'\xa0', u' ')
@@ -177,7 +192,7 @@ def load_raw_data(path):
     return df
 
 
-def load_labled_data(path="../data/labeled_test_clusters.csv"):
+def load_labeled_data(path="../data/labeled_test_clusters.csv"):
     """
     Load the labeled data from the csv
     :param path:
@@ -288,10 +303,16 @@ def parse_google_named_entities(json_obj, deduplicate=False):
 
 
 def c_tf_idf(documents, m, ngram_range=(1, 1), remove_stop_words=True):
+    """ Here we pre-load big chunk of german stopwords.  """
+    STOPWORDS = load_stopwords()
+
     if remove_stop_words:
         def remove_stop_words(doc):
             for sword in STOPWORDS:
-                doc = doc.replace(sword, "")
+                if type(doc) == str:
+                    doc = doc.replace(sword, "")
+                elif type(doc) == list and sword in doc:
+                    doc.remove(sword)
                 return doc
 
         documents = np.array(list(map(remove_stop_words, documents)))
@@ -318,11 +339,11 @@ def extract_top_n_words_per_topic(tf_idf, count, docs_per_topic, n=20):
 
 
 def extract_topic_sizes(df, col="Topic"):
-    topic_sizes = (df.groupby([col])
-                   .Doc
+    text_column = "Doc" if "Doc" in df.columns.to_list() else "headline"
+    topic_sizes = (df.groupby([col])[text_column]
                    .count()
                    .reset_index()
-                   .rename({"Topic": "Topic", "Doc": "Size"}, axis='columns')
+                   .rename({"Topic": "Topic", text_column: "Size"}, axis='columns')
                    .sort_values("Size", ascending=False))
     return topic_sizes
 
@@ -333,6 +354,14 @@ def preprocess_and_tokenize_text(df, col="text"):
     punctuation.remove(".")
     tokenizer = TreebankWordTokenizer()  # RegexpTokenizer(r'\w+')
     stem = GermanStemmer()
+
+    """ Here we pre-load big chunk of german stopwords.  """
+    with open(os.path.dirname(__file__) + "/german_stopwords_plain.txt") as f:
+        STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
+        STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
+                      "heißt", "heißen", "müsse", "prozent", "BILD", "etwas"]
+        STOPWORDS = set(STOPWORDS)
+    print("Number of stopwords {}".format(len(STOPWORDS)))
 
     for news in df[col]:
         words = []
@@ -380,7 +409,7 @@ def mlflow_run_model_eval(mlflow, embeddings, df, max_pooling, min_cluster_size,
         mlflow.log_metric(key="unique_clusters", value=len(summarized_clusters.items()))
         # mlflow.log_metric(key="cluters_ratio_to_GT",
         #                   value=(len(summarized_clusters.items()) - 1) / len(y_summarized_clusters.items()))
-        mlflow.log_metric(key="silhuette_score", value=silhouette_score(_X, cluster_labels))
+        mlflow.log_metric(key="silhuette_score", value=silhouette_score(embeddings, cluster_labels))
 
         results = link_to_raw_data(results, df, cluster_labels)
 

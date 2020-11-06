@@ -9,7 +9,10 @@ from sentence_transformers import models
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn import metrics
 from modules import utils
+import pandas as pd
 import pickle
+
+
 # tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
 
@@ -37,9 +40,27 @@ def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max
     return embeddings
 
 
-def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-comps.pkl", **kwargs):
+def umap_for_viz(embeddings, df, n_neighbors, min_dist):
     """
-    This function takes embeddings, loads the given pretrained UMAP model and computes the two dimensional projection
+    This function performs dimensionality reduction for the visualization.
+    :param embeddings: array of embedded vectors
+    :param df:  Articles DF with dates and headlines
+    :param n_neighbors:
+    :param min_dist:
+    :return:
+    """
+    umap_data = umap.UMAP(n_neighbors=n_neighbors, n_components=2, min_dist=min_dist, metric='cosine', random_state=0) \
+        .fit_transform(embeddings)
+    res = pd.DataFrame(umap_data, columns=['x', "y"], index=df.index)
+    res["headline"] = df["headline"].values
+    res["created_at"] = df["created_at"].values
+
+    return res
+
+
+def load_umap_and_cluster(embeddings,umap_model, viz_model="umap_viz_100_19-neighbors_0.01-min-dist.pkl", **kwargs):
+    """
+    This function takes embeddings, loads the given pretrained UMAP models, and performs the clustering.
     $ready to be vizualized,
     :param embeddings:
     :param kwargs:
@@ -48,8 +69,8 @@ def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-com
     # Load the Model back from file
     start_time = time.time()
 
-    viz_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/umap_viz_10_30-neighbors.pkl"
-    dim_reduction_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/"+umap_model
+    viz_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/"+viz_model
+    dim_reduction_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/" + umap_model
 
     with open(viz_model_path, 'rb') as file:
         fitted_umap_viz = pickle.load(file)
@@ -67,7 +88,7 @@ def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-com
     umap_embeddings = fitted_umap_clustering.transform(embeddings)
 
     # Overriding default parameters
-    params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 0.78, "cluster_selection_epsilon": 0.1,
+    params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 0.75, "cluster_selection_epsilon": 0.01,
               "allow_single_cluster": True,
               "metric": 'euclidean',
               "cluster_selection_method": 'eom',
@@ -77,9 +98,10 @@ def load_umap_and_cluster(embeddings,umap_model="umap_100000_6-neighbors_128-com
         params[k] = v
 
     print(">> Clustering...", end="\r")
+    print(umap_embeddings.shape)
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
-    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
-    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
+    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)))
     return umap_data, clusters
 
 
@@ -98,8 +120,8 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
                                     n_components=n_components_clustering, random_state=0,
                                     metric='cosine', init="random").fit_transform(embeddings)
 
-    params = {"min_cluster_size": 6, "min_samples": 3,
-              "alpha": 0.88, "cluster_selection_epsilon": 0.11
+    params = {"min_cluster_size": 3, "min_samples": 3,
+              "alpha": 0.80, "cluster_selection_epsilon": 0.11
         , "metric": 'euclidean',
               "cluster_selection_method": 'eom', "approx_min_span_tree": True}
 
@@ -136,10 +158,9 @@ def scatter_plot(result, save_fig=False):
         fig.show()
 
 
-
 ################################
 
-# Legacy functions below 
+# Legacy functions below
 
 ################################
 
