@@ -58,7 +58,28 @@ def umap_for_viz(embeddings, df, n_neighbors, min_dist):
     return res
 
 
-def load_umap_and_cluster(embeddings,umap_model, viz_model="umap_viz_100_19-neighbors_0.01-min-dist.pkl", **kwargs):
+import os
+
+
+def _splitall(path):
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path:  # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
+
+
+def load_umap_and_cluster(embeddings, umap_model,
+                          viz_model="bert-german-dbmdz-uncased-sentence-stsb/umap_viz_100_19-neighbors_0.01-min-dist.pkl",
+                          **kwargs):
     """
     This function takes embeddings, loads the given pretrained UMAP models, and performs the clustering.
     $ready to be vizualized,
@@ -69,8 +90,8 @@ def load_umap_and_cluster(embeddings,umap_model, viz_model="umap_viz_100_19-neig
     # Load the Model back from file
     start_time = time.time()
 
-    viz_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/"+viz_model
-    dim_reduction_model_path = "../models/bert-german-dbmdz-uncased-sentence-stsb/" + umap_model
+    viz_model_path = "../models/" + viz_model
+    dim_reduction_model_path = "../models/" + umap_model
 
     with open(viz_model_path, 'rb') as file:
         fitted_umap_viz = pickle.load(file)
