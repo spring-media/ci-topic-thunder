@@ -28,7 +28,7 @@ This directory is syncronised with S3 bucket folder. It contians all the raw dat
 
 - dump_last-160k_31-10.csv	- most up-to-date data export from 31.10.2020. It Contains a joined table of articles + named entities for every article in the database. 
 - bild_articles.csv - older data dump from 9th of September. It has ca. 8k articles less the newes one from the dump. 
-- embeddings_bild_articles.npy	npy	November 9, 2020, 01:40 (UTC+01:00)	
+- embeddings_bild_articles.npy -	embeddings of all the articles form bild_articles.csv
 - headlines-2016-deepl.csv - set of ca. 750 headline pairs from the SentEval dataset. Translated using DeepL. [Original File](https://github.com/brmson/dataset-sts/blob/master/data/sts/semeval-sts/2016/headlines.test.tsv)
 - labeled_test_clusters.csv	- contains 240 labeled articles (20 Clusters). Used for parameter search and evaluation of the clustering performance
 - raw_article_entities.csv - named entities matiching the labeled dataset above.
