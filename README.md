@@ -2,6 +2,8 @@
 
 ![logo](./topic-thunder-logo.jpg)
 Repo for storing code related to topic thunder master thesis project.
+Notes from the user inteviews:
+- https://moveoffice-my.sharepoint.com/:w:/g/personal/tomasz_tkaczyk_axelspringer_com/ESnj_G2zvulIsTa-nxgVV5YBNqeWScKDwGgmvIy0Z7e4MA?e=Dx9tGW
 
 
 ## Prototype
@@ -21,6 +23,19 @@ Repo for storing code related to topic thunder master thesis project.
 - papers - research papers and PDF resources for thesis
 - notebooks - notebooks with experiments
 
+### Data files:
+This directory is syncronised with S3 bucket folder. It contians all the raw data files.
+
+- dump_last-160k_31-10.csv	- most up-to-date data export from 31.10.2020. It Contains a joined table of articles + named entities for every article in the database. 
+- bild_articles.csv - older data dump from 9th of September. It has ca. 8k articles less the newes one from the dump. 
+- embeddings_bild_articles.npy	npy	November 9, 2020, 01:40 (UTC+01:00)	
+- headlines-2016-deepl.csv - set of ca. 750 headline pairs from the SentEval dataset. Translated using DeepL. [Original File](https://github.com/brmson/dataset-sts/blob/master/data/sts/semeval-sts/2016/headlines.test.tsv)
+- labeled_test_clusters.csv	- contains 240 labeled articles (20 Clusters). Used for parameter search and evaluation of the clustering performance
+- raw_article_entities.csv - named entities matiching the labeled dataset above.
+- embeddings.npy - numpu dump of all emebeddings generated for all articles in bild_articles.csv. (Input size was 128 characters )
+
+### Models
+This directory is syncronised with S3 bucket folder. It contians all the models and artifacts files.
 
 
 ```
