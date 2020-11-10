@@ -16,3 +16,8 @@ dash_table==4.10.1
 pymysql==0.10.1
 scikit_learn==0.23.2
 umap-learn==0.4.6
+pyLDAvis==2.1.2
+sentence-transformers==0.3.8
+MLflow==1.11.0
+summa==1.2.0
+

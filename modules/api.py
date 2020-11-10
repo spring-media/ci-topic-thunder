@@ -15,6 +15,8 @@ df= utils.load_text_data("../data/Result_31.csv").head(50000).sort_values("creat
 
 _pdf = pd.DataFrame(np.load("../models/cross-en-de-roberta-sentence-transformer/Top-50k_articles_embddings_ids.npy",allow_pickle=True),columns=["article_id","embedding"]).set_index("article_id")
 #_pdf=pd.merge(_pdf,df,on="article_id")
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
