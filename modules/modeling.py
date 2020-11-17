@@ -91,9 +91,23 @@ def _preload_umap_reduce(embeddings, model):
         fitted_umap_viz = pickle.load(file)
     reduced = fitted_umap_viz.transform(embeddings)
     print("--- UMAP Loaded in %s seconds \n--- Reduced dimensionality to %s ." % (
-    (time.time() - start_time), reduced.shape))
+        (time.time() - start_time), reduced.shape))
 
     return reduced
+
+
+def _new_umap_reduce(embeddings,args={}):
+    start_time = time.time()
+    params = {"n_neighbors": 10, "n_components": 384,
+              "metric": 'cosine', "random_state": 0}
+    for (k, v) in args.items():
+        params[k] = v
+    umap_data = umap.UMAP(**params).fit_transform(
+        embeddings)
+    print("--- UMAP fitted in %s seconds \n--- Reduced dimensionality to %s ." % (
+        (time.time() - start_time), umap_data.shape))
+
+    return umap_data
 
 
 def load_umap_and_cluster(embeddings, umap_model,
@@ -176,7 +190,7 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
     return umap_data, clusters
 
 
-def scatter_plot(result, save_fig=False,hover_data=["created_at"], **kwargs):
+def scatter_plot(result, save_fig=False, hover_data=["created_at"], **kwargs):
     if "labels" in result.columns.to_list():
         result["labels"] = result.labels.apply(str)
     elif "topic_number" in result:
@@ -206,7 +220,7 @@ def bar_plot(result, save_fig=False, **kwargs):
     elif "topic_number" in result:
         result["labels"] = result.topic_number.apply(str)
 
-    res = result.groupby(['labels', 'created_at']).count().unstack()["headline"].T#.plot(kind="bar",**kwargs)
+    res = result.groupby(['labels', 'created_at']).count().unstack()["headline"].T  # .plot(kind="bar",**kwargs)
 
     fig = px.bar(res)
 
@@ -214,7 +228,7 @@ def bar_plot(result, save_fig=False, **kwargs):
         fig.update_layout(height=500)  # Dumping smaller images for convience
         fig.write_html("./tmp_scatter_plot.html")
     else:
-#        fig.update_layout(height=1000)
+        #        fig.update_layout(height=1000)
         fig.show()
 
 

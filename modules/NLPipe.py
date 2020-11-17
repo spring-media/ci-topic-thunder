@@ -17,7 +17,7 @@ from kneed import KneeLocator
 
 from modules.utils import preprocess_articles_for_bert, load_labeled_data
 from modules.modeling import scatter_plot,bar_plot
-from modules.modeling import _preload_umap_reduce
+from modules.modeling import _preload_umap_reduce,_new_umap_reduce
 
 
 # https://stackoverflow.com/a/7590709/362790
@@ -151,6 +151,11 @@ class NLPipe:
                    model_path="../models/bert-german-dbmdz-uncased-sentence-stsb/umap_100k_6-neighbors_384-comps.pkl"):
         return _preload_umap_reduce(both,
                                     model=model_path)
+
+    @chain(together=True)
+    def reduce_dim_fresh(self,both: List[float],params):
+
+        return _new_umap_reduce(embeddings=both,args=params)
 
     @chain(together=True, keep='headlines')
     def _store_headlines(self, df):
@@ -290,7 +295,7 @@ class NLPipe:
 
         for (k, v) in kwargs.items():
             params[k] = v
-
+        print(params)
         cluster_labels = HDBSCAN(**params).fit_predict(x)
         print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
         return [cluster_labels]
