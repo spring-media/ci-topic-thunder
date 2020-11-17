@@ -16,7 +16,7 @@ import pickle
 # tokenizer = AutoTokenizer.from_pretrained("dbmdz/bert-base-german-cased")
 
 
-def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max_tokens=False):
+def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max_tokens=False, **kwargs):
     """
         This function takes array of (preprocessed) sentence embeddings, a model and one paramter and returns the embeddings
     :param array:
@@ -34,7 +34,7 @@ def get_sentence_embeddings(array, sbert_worde_embedding_model, pooling_mode_max
     model = SentenceTransformer(modules=[sbert_worde_embedding_model, pooling_model])
 
     start_time = time.time()
-    embeddings = model.encode(array, show_progress_bar=True)
+    embeddings = model.encode(array, show_progress_bar=True, **kwargs)
     print("--- Embedding dimension {}".format(embeddings.shape[1]))
     print("--- %d Documnets encoded %s seconds ---" % (len(array), (time.time() - start_time)))
     return embeddings
@@ -77,6 +77,25 @@ def _splitall(path):
     return allparts
 
 
+def load_umap_viz_and_reduce(embeddings,
+                             viz_model="bert-german-dbmdz-uncased-sentence-stsb/umap_viz_100_19-neighbors_0.01-min-dist.pkl"):
+    # Load the Model back from file
+    return _preload_umap_reduce(embeddings, viz_model)
+
+
+def _preload_umap_reduce(embeddings, model):
+    start_time = time.time()
+
+    viz_model_path = "../models/" + model
+    with open(viz_model_path, 'rb') as file:
+        fitted_umap_viz = pickle.load(file)
+    reduced = fitted_umap_viz.transform(embeddings)
+    print("--- UMAP Loaded in %s seconds \n--- Reduced dimensionality to %s ." % (
+    (time.time() - start_time), reduced.shape))
+
+    return reduced
+
+
 def load_umap_and_cluster(embeddings, umap_model,
                           viz_model="bert-german-dbmdz-uncased-sentence-stsb/umap_viz_100_19-neighbors_0.01-min-dist.pkl",
                           **kwargs):
@@ -103,16 +122,15 @@ def load_umap_and_cluster(embeddings, umap_model,
 
     st = time.time()
     umap_data = fitted_umap_viz.transform(embeddings)
-    print(">> Reducing dimensionality from {} to {} ...".format(embeddings.shape[1], str(128)),
-          end="\r")
 
     umap_embeddings = fitted_umap_clustering.transform(embeddings)
-
+    print(">> Reduced dimensionality from {} to {} ...".format(embeddings.shape[1], umap_embeddings.shape[1]),
+          end="\r")
     # Overriding default parameters
-    params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 0.75, "cluster_selection_epsilon": 0.01,
+    params = {"min_cluster_size": 3, "min_samples": 2, "alpha": 1.0, "cluster_selection_epsilon": 0.14,
               "allow_single_cluster": True,
               "metric": 'euclidean',
-              "cluster_selection_method": 'eom',
+              "cluster_selection_method": 'leaf',
               "approx_min_span_tree": True}
 
     for (k, v) in kwargs.items():
@@ -120,6 +138,7 @@ def load_umap_and_cluster(embeddings, umap_model,
 
     print(">> Clustering...", end="\r")
     print(umap_embeddings.shape)
+
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
     print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
     print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)))
@@ -141,10 +160,10 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
                                     n_components=n_components_clustering, random_state=0,
                                     metric='cosine', init="random").fit_transform(embeddings)
 
-    params = {"min_cluster_size": 3, "min_samples": 3,
-              "alpha": 0.80, "cluster_selection_epsilon": 0.11
-        , "metric": 'euclidean',
-              "cluster_selection_method": 'eom', "approx_min_span_tree": True}
+    params = {"min_cluster_size": 3, "min_samples": 2,
+              "alpha": 1.0, "cluster_selection_epsilon": 0.14, "metric": 'euclidean',
+              "cluster_selection_method": 'leaf',
+              "approx_min_span_tree": True}
 
     for (k, v) in kwargs.items():
         params[k] = v
@@ -157,14 +176,14 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
     return umap_data, clusters
 
 
-def scatter_plot(result, save_fig=False):
+def scatter_plot(result, save_fig=False,hover_data=["created_at"], **kwargs):
     if "labels" in result.columns.to_list():
         result["labels"] = result.labels.apply(str)
     elif "topic_number" in result:
         result["labels"] = result.topic_number.apply(str)
 
-    fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=["created_at"], color="labels",
-                     opacity=0.8)
+    fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=hover_data, color="labels",
+                     opacity=0.8, **kwargs)
     fig.update_traces(marker=dict(size=9,
                                   line=dict(width=0.15,
                                             color='DarkSlateGrey')),
@@ -176,6 +195,26 @@ def scatter_plot(result, save_fig=False):
         fig.write_html("./tmp_scatter_plot.html")
     else:
         fig.update_layout(height=1000)
+        fig.show()
+
+
+def bar_plot(result, save_fig=False, **kwargs):
+    pd.options.plotting.backend = "plotly"
+
+    if "labels" in result.columns.to_list():
+        result["labels"] = result.labels.apply(str)
+    elif "topic_number" in result:
+        result["labels"] = result.topic_number.apply(str)
+
+    res = result.groupby(['labels', 'created_at']).count().unstack()["headline"].T#.plot(kind="bar",**kwargs)
+
+    fig = px.bar(res)
+
+    if save_fig:
+        fig.update_layout(height=500)  # Dumping smaller images for convience
+        fig.write_html("./tmp_scatter_plot.html")
+    else:
+#        fig.update_layout(height=1000)
         fig.show()
 
 
