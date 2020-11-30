@@ -184,11 +184,26 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
 
     print(">> Clustering...", end="\r")
     clusters = HDBSCAN(**params).fit_predict(umap_embeddings)
-    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st), end="\r")
-    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters)), end="\r")
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
+    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters,metric='cosine')))
 
     return umap_data, clusters
 
+def cluster(embeddings,**kwargs):
+    st = time.time()
+
+    params = {"min_cluster_size": 3, "min_samples": 2,
+              "alpha": 1.0, "cluster_selection_epsilon": 0.14, "metric": 'euclidean',
+              "cluster_selection_method": 'leaf',
+              "approx_min_span_tree": True}
+
+    for (k, v) in kwargs.items():
+        params[k] = v
+
+    print(">> Clustering...", end="\r")
+    clusters = HDBSCAN(**params).fit_predict(embeddings)
+    print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
+    print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(embeddings, clusters,metric='cosine')))
 
 def scatter_plot(result, save_fig=False, hover_data=["created_at"], **kwargs):
     if "labels" in result.columns.to_list():
@@ -197,7 +212,7 @@ def scatter_plot(result, save_fig=False, hover_data=["created_at"], **kwargs):
         result["labels"] = result.topic_number.apply(str)
 
     fig = px.scatter(result, x="x", y="y", hover_name="headline", hover_data=hover_data, color="labels",
-                     opacity=0.8, **kwargs)
+                      **kwargs)
     fig.update_traces(marker=dict(size=9,
                                   line=dict(width=0.15,
                                             color='DarkSlateGrey')),
@@ -213,7 +228,6 @@ def scatter_plot(result, save_fig=False, hover_data=["created_at"], **kwargs):
 
 
 def bar_plot(result, save_fig=False, **kwargs):
-    pd.options.plotting.backend = "plotly"
 
     if "labels" in result.columns.to_list():
         result["labels"] = result.labels.apply(str)

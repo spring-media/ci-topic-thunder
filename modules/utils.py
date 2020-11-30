@@ -31,6 +31,7 @@ def init_logger(name):
 
 
 def load_stopwords():
+
     with open(os.path.dirname(__file__) + "/german_stopwords_plain.txt") as f:
         STOPWORDS = [line.strip() for line in f if not line.startswith(";")]
         STOPWORDS += ["dass", "", "/t", "   ", "...", "worden", "jahren", "jahre", "jahr",
@@ -257,9 +258,12 @@ def relink_data_after_clustering(data_to_viz, df, cluster_labels):
     result['seo_title'] = df["seo_title"].values
     result['raw_text'] = df["text"].values
     result['article_uid'] = df.index.values
-    result["kicker_headline_ne"] = df.kicker_headline_NER.values
-    result["text_ne"] = df.text_NER.values
-    result["seo_title_ne"] = df.seo_title_NER.values
+    try:
+        result["kicker_headline_ne"] = df.kicker_headline_NER.values
+        result["text_ne"] = df.text_NER.values
+        result["seo_title_ne"] = df.seo_title_NER.values
+    except AttributeError as er:
+        print("Could not assign NER")
 
     result['created_at'] = df["created_at"].dt.date.values
 
@@ -267,9 +271,9 @@ def relink_data_after_clustering(data_to_viz, df, cluster_labels):
     result['created_at'] = result.created_at.apply(str)
     outliers = result.loc[result.topic_number == -1, :]
     clustered = result.loc[result.topic_number != -1, :]
-    print("Outliers: {} | Clustered: {} | {} \n Cluster count: {} ".format(len(outliers), len(clustered),
-                                                                           (len(clustered) / (
-                                                                                   len(outliers) + len(clustered)))
+    print("Outlier points: {} | Clustered: {} ({}) | Cluster count: {} ".format(len(outliers),
+                                                                           len(clustered),
+                                                                           (len(clustered) / (len(outliers) + len(clustered)))
                                                                            , len(clustered.topic_number.unique())))
 
     return result
