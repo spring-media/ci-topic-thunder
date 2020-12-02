@@ -15,11 +15,6 @@ The model is trained to assign topics to the articles.
 
 ## Installation
 
-Clone this repo:
-
-```sh
-git clone git@github.com:curiousily/Deploy-BERT-for-Sentiment-Analysis-with-FastAPI.git
-cd Deploy-BERT-for-Sentiment-Analysis-with-FastAPI
 ```
 
 Download the pre-trained model:
@@ -36,6 +31,8 @@ Start the HTTP server:
 bin/start_server
 
 docker run  --env-file ./env topic-thunder
+
+docker build -t topic-thunder . && docker run --env-file ./.env -p 8080:8080 topic-thunder 
 docker-compose 
 
 ```
