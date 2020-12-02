@@ -83,7 +83,7 @@ class NLPipe:
         self.last_fn = last_fn
         self.data = data
         # Apply mean pooling to get one fixed sized sentence vector
-        word_embedding_model = models.Transformer('T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb',max_seq_length=250)
+        word_embedding_model = models.Transformer('T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb',max_seq_length=512)
 
         pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
                                        pooling_mode_mean_tokens=True,

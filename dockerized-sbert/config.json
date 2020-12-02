@@ -1,0 +1,5 @@
+{
+    "BERT_MODEL": "bert-base-cased",
+    "PRE_TRAINED_MODEL": "assets/model_state_dict.bin",
+    "MAX_SEQUENCE_LEN": 512
+}

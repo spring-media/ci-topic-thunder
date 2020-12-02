@@ -20,4 +20,5 @@ pyLDAvis==2.1.2
 sentence-transformers==0.3.8
 MLflow==1.11.0
 summa==1.2.0
+psycopg2==2.8.6
 

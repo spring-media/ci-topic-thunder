@@ -1,0 +1,11 @@
+version: '3'
+services:
+    web:
+        build: .
+        container_name: "encoder-container"
+        ports:
+            - "8000:8080"
+#        volumes:
+#            - ./topic_thunder/:/home/topic_thunder
+        env_file:
+          - .env
