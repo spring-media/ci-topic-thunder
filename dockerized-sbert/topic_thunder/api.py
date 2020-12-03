@@ -8,6 +8,9 @@ from fastapi import Depends, FastAPI
 import uvicorn
 import pandas as pd
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(debug=True)
 
@@ -23,7 +26,8 @@ async def start():
     SBERT = encoder.SBERT()
     emebddings = SBERT.encode(DL.data)
     results = dict(zip(DL.index, emebddings))
-    return results
+    return json.dumps(results)
+
 
 if __name__ == "__main__":
-    uvicorn.run(app,host='0.0.0.0' ,port=8080)
+    uvicorn.run(app,host='0.0.0.0' ,debug=True,port=8080)

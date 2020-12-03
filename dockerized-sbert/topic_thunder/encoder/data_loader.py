@@ -15,11 +15,13 @@ HUD_LOGIN = environ.get('DB_USER') if 'DB_USER' in environ else 'fallback-test-v
 HUD_PASSWORD = environ.get('DB_PASSWORD') if 'DB_PASSWORD' in environ else 'fallback-test-value'
 
 SRC_TABLE_NAME = environ.get('ARTICLES_TABLE')
-TARGET_TABLE_NAME = environ.get('TARGET_TABLE')
+EMBEDDINGS_TABLE = environ.get('EMBEDDINGS_TABLE')
 
-db_connection = create_engine('mysql+pymysql://{}/{}'.format(HUD_HOST, HUD_DATABASE_NAME), echo=True)
+DB_URL = 'mysql+pymysql://{}:{}@{}/{}'.format(HUD_LOGIN, HUD_PASSWORD,HUD_HOST, HUD_DATABASE_NAME)
+db_connection = create_engine(DB_URL, echo=True)
 s3 = boto3.client('s3')
 
+s3.list_buckets()
 
 class DataLoader:
     def __init__(self):
@@ -27,12 +29,14 @@ class DataLoader:
         df = self._pull_latest_articles()
 
         df['_input'] = df['seo_title'].apply(lambda x: self._remove_seo_title_marker(x, True)) + ". " + df["text"]
+    
         self.index = df.index.to_list()
         self.data = self.preprocess_articles_for_bert(df, col="_input")
 
         for x in range(5):
             print("{}. {}...".format(x, self.data[x][:250]))
-
+    
+    @staticmethod
     def _remove_seo_title_marker(headline, remove_section=False):
         """
         This function removes the suffix category tag from the seo_title.
@@ -64,11 +68,23 @@ class DataLoader:
     def _pull_latest_articles(self):
         print(">>> Prep started")
         SRC_SQL_QUERY = 'SELECT * FROM {} limit 250'.format(SRC_TABLE_NAME)
-        TARGET_SQL_QUERY = "SELECT 'article_uid' FROM {}".format(TARGET_TABLE_NAME)
+        TARGET_SQL_QUERY = "SELECT 'article_uid' FROM {}".format(EMBEDDINGS_TABLE)
 
-        df = pd.read_sql_query(SRC_SQL_QUERY, con=db_connection)
+        df = pd.read_sql_query(SRC_SQL_QUERY, con=db_connection,parse_dates=["created_at"]).set_index('article_uid')
+        target_df = pd.read_sql_query(TARGET_SQL_QUERY, con=db_connection,parse_dates=["article_created_at"])
+
+        print(target_df["article_uid"].values)
+        print(df.drop(target_df['article_uid']))
         # TODO: Prep of befeore reading data
         return df
+
+    def _store_embeddings(self, df):
+        
+        try:
+            df.to_sql(EMBEDDINGS_TABLE,if_exists="append",con=db_connection)
+        except SQLAlchemyError as err:
+            print("Could not store emebddings.")
+
 
     def preprocess_articles_for_bert(self, articles, col="text", lower=False):
         """

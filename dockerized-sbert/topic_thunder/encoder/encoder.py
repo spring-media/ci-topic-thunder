@@ -14,7 +14,7 @@ s3 = boto3.client('s3',)
 class SBERT:
     def __init__(self, model_path=None, s3_bucket=None, file_prefix=None):
         # Apply mean pooling to get one fixed sized sentence vector
-        self.model = self.from_pretrained(model_path)
+        self.model = self.from_pretrained()
 
     def from_pretrained(self, model_path="T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb"):
         word_embedding_model = models.Transformer(model_path, max_seq_length=512)
