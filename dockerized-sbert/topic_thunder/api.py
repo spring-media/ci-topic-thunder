@@ -5,11 +5,12 @@ sys.path.append(os.path.dirname(__file__))
 
 from typing import Dict
 from fastapi import Depends, FastAPI
-import uvicorn
+import uvicorn,json
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
-
+from model_pipeline import NLPipe
+from main import Manager
 load_dotenv()
 
 app = FastAPI(debug=True)
@@ -21,12 +22,13 @@ async def root():
 
 @app.get('/start')
 async def start():
-    from encoder import data_loader, encoder
-    DL = data_loader.DataLoader()
-    SBERT = encoder.SBERT()
-    emebddings = SBERT.encode(DL.data)
-    results = dict(zip(DL.index, emebddings))
-    return json.dumps(results)
+    mgr = Manager()
+    results = mgr._pull_latest_articles()
+    #results = NLPipe()
+    #emebddings = SBERT.encode(DL.data)
+    #results = dict(zip(DL.index, emebddings))
+    #print(results)
+    return json.dump(results)
 
 
 if __name__ == "__main__":

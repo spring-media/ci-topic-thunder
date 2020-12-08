@@ -7,3 +7,5 @@ pymysql==0.10.1
 sentence-transformers==0.3.9
 psycopg2-binary==2.8.6
 boto3
+python-box 5.2.0
+python-dotenv

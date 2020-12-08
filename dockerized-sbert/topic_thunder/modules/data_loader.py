@@ -53,7 +53,8 @@ class DataLoader:
         else:
             tmp = [wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-1]]
         return " ".join(tmp).lstrip().rstrip()
-
+    
+    @staticmethod
     def _build_query_for_new_articles(article_ids, table_name):
         query = "SELECT * FROM {} arts ".format(table_name)
 
@@ -157,7 +158,4 @@ class DataLoader:
             corpus.append(news)
         return corpus
 
-    @staticmethod
-    def _save_results_to_table(results_df):
-        print(results_df)
-        pd.to_sql(results_df, table_name=TARGET_TABLE_NAME, method="append")
+
