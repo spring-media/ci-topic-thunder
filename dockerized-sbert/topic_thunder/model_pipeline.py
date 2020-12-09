@@ -79,7 +79,7 @@ class NLPipe:
         self.result = [x, y]
         self.last_fn = last_fn
         self.data = data
-
+        
 
     def load_pretrained_model(self,model_name='T-Systems-onsite/bert-german-dbmdz-uncased-sentence-stsb'):
         # Apply mean pooling to get one fixed sized sentence vector
@@ -131,7 +131,8 @@ class NLPipe:
 
     @staticmethod
     def _join(x, y):
-        if y is None: return x
+        if y is None and type(x) == list: return x
+        if y is None and type(x) == np.array: return x
         if type(x) == list: return x + y
         if type(x) == np.ndarray: return np.vstack([x, y])
         if torch.is_tensor(x): return torch.cat((x, y), 0)
@@ -153,13 +154,16 @@ class NLPipe:
         if not hasattr(self,'model'):
             print('Model undefined. Loading preloaded one')
             self.load_pretrained_model()
-
-        return self.model.encode(
-            both,
-            batch_size=batch_size,
-            show_progress_bar=True,
-            convert_to_tensor=True
-        )
+        if both:
+            return self.model.encode(
+                both,
+                batch_size=batch_size,
+                show_progress_bar=True,
+                convert_to_tensor=True
+            )
+        else:
+            print("Warning empty list!")
+            return both
 
     @chain(together=True)
     def reduce_dim(self, both: List[float],
@@ -301,13 +305,16 @@ class NLPipe:
 
     @chain(keep='labels')
     def cluster_hdbscan(self, x, y, **kwargs):
-        both = self._join(x, y)
-        n = both.shape[0]
+        #both = self._join(x, y)
+        if type(x) == pd.DataFrame:
+            x = np.stack(x.embedding.values)
+
+        n = x.shape[0]
         st = time.time()
 
         # Overriding default parameters
         params = {"min_cluster_size": 3, "min_samples": 3, "alpha": 1.0, "cluster_selection_epsilon": 0.14,
-                  "allow_single_cluster": True,
+                  #"allow_single_cluster": True,
                   "metric": 'euclidean',
                   "cluster_selection_method": 'eom',
                   "approx_min_span_tree": True}
