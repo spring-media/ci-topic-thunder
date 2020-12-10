@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from os import environ
 from dotenv import load_dotenv
 from modules import utils
-load_dotenv(verbose=True)
+load_dotenv('./dockerized-sbert/.env.prod',verbose=True   )
 
 
 
@@ -90,6 +90,8 @@ class Manager:
         df.drop(target_df['article_uid'],inplace=True,errors="ignore")
         # TODO: Prep of befeore reading data. Casting? 
         print("Found {} new articles - {} are already in the db".format(df.shape[0],target_df.shape[0]))
+
+        self.data = df
         self.init_pipeline()
         return df
 
@@ -108,6 +110,7 @@ class Manager:
             query += " WHERE  t.article_id = '{}' ".format(article_id)
             if idx == len(article_ids) - 1:
                 query += " OR "
+        SRC_SQL_QUERY += 'ORDER BY t.created_at DESC'
 
         query = query + ";"
         return query
@@ -124,21 +127,22 @@ class Manager:
 
         df.embedding = df.embedding.apply(pickle.loads)
         self.data = df
-        self.init_pipeline()
+        if not df.empty:
+            self.init_pipeline()
 
     def _store_topic_lables(self,article_ids,topic_labels):
-        columns= ['article_id', 'topic_label']
-        df = pd.DataFrame(zip(article_ids,topic_labels),columns=columns)
-        df.to_sql(EMBEDDINGS_TABLE,if_exists="append",con=db_connection)
+        columns= ['article_uid', 'topic_label']
+        df = pd.DataFrame(zip(article_ids,topic_labels),columns=columns).set_index('article_uid')
+        df.to_sql(TOPIC_LABELS_TABLE,if_exists="append",con=db_connection)
     
 
 if __name__ == "__main__":
     m = Manager()
-    df = m._read_latest_articles()
+    # df = m._read_latest_articles(2500)
 
-    res =m.embedd_batch()
-    if not res.empty:
-         m._save_embeddings_to_table(res)
-    #m._read_embeddings()
-    #topic_labels = m.pipeline.cluster_hdbscan().value()
-    #m._store_topic_lables(m.data.index, topic_labels)
+    # res =m.embedd_batch()
+    # if not res.empty:
+    #      m._save_embeddings_to_table(res)
+    m._read_embeddings()
+    topic_labels = m.pipeline.cluster_hdbscan().value()
+    m._store_topic_lables(m.data['article_uid'][:1000], topic_labels)

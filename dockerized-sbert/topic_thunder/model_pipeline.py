@@ -131,6 +131,8 @@ class NLPipe:
 
     @staticmethod
     def _join(x, y):
+        if type(x) == pd.DataFrame: return x 
+        if y is None and type(x) == np.ndarray: return x
         if y is None and type(x) == list: return x
         if y is None and type(x) == np.array: return x
         if type(x) == list: return x + y
@@ -176,7 +178,7 @@ class NLPipe:
         return _new_umap_reduce(embeddings=both,args=params)
 
     @chain(together=True, keep='headlines')
-    def _store_headlines(self, df):
+    def _store_headlines(self,df):
         return [df.headline.values]
 
     @chain(together=True, keep='created_at')
@@ -309,7 +311,7 @@ class NLPipe:
         if type(x) == pd.DataFrame:
             x = np.stack(x.embedding.values)
 
-        n = x.shape[0]
+        #n = x.shape[0]
         st = time.time()
 
         # Overriding default parameters
@@ -322,6 +324,8 @@ class NLPipe:
         for (k, v) in kwargs.items():
             params[k] = v
         print(params)
+
+        x = x[:1000,:]
         cluster_labels = HDBSCAN(**params).fit_predict(x)
         print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
         return [cluster_labels]
