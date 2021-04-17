@@ -61,13 +61,15 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub(r" \(\d+\)", "", news)  # Numbers in brackets ie ages
         news = re.sub(r"\d+:+\d+-", "", news)  # Remove scores from i.e 2:3-Sieg
         news = re.sub(r"\(+\d+:+\d\)+", "", news)  # Scores in brackets
-
+        _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
         # Drop Weird characters
         news = re.sub('[{}]'.format(re.escape(r'–•™©®●▶︎►…"$%&()*œ†¥+:;µ≤≥æ«‘π<=>[\]^_`‚‘{|}~\'')), '', news)
 
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
         news = re.sub("bild plus", "", news, flags=re.IGNORECASE)
+        news = re.sub("mehr gleich bei bild.", "", news, flags=re.IGNORECASE)
+
         # news = re.sub(r"ß", "ss", news)  # Remove ß
 
         # news = re.sub(r"\?", ".", news) # ?
@@ -90,7 +92,7 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
 
         news = news.replace('“', "")
         news = news.replace('„', "")
-
+    
         news = news.replace('\xa0', '')
         news = news.replace('\xad', '')
         news = news.replace('\u00ad', '')
@@ -100,8 +102,9 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = news.replace(' . ', ". ")  # Unnecessary spaces 
         news = news.replace('. ', ". ")  # Unnecessary spaces
         news = re.sub(r'(\w+)(\/)(\w+)', r"\g<1> \g<3>", news)  # Double words i.e Potsdam/Brandenburg are split
-
+        news = news.replace('➡️','')
         news = re.sub(" {2}", " ", news)  # Remove doube spaces
+        news = _RE_COMBINE_WHITESPACE.sub(" ", news).strip()
         news = re.sub(r"\.\.", ".", news)
         news = re.sub(r" \. {2}", ". ", news)
 
@@ -165,11 +168,14 @@ def remove_seo_title_marker(headline, remove_section=False):
     tmp = tmp.replace('Bild.de', "")
     tmp = tmp.replace('*** BILDplus Inhalt ***', "")
     tmp = tmp.replace(u'\xa0', u' ')
-    if remove_section:
-        tmp = [wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-2]]
+    if '-' in tmp:
+        if  remove_section:
+            tmp = [wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-2]]
+        else:
+            tmp = [wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-1]]
+        return " ".join(tmp).lstrip().rstrip()
     else:
-        tmp = [wrds.lstrip().rstrip() for wrds in tmp.split("-")[:-1]]
-    return " ".join(tmp).lstrip().rstrip()
+        return tmp
 
 
 def load_text_data(path: str = "../data/bild_articles.csv") -> pd.DataFrame:
@@ -355,7 +361,7 @@ def extract_topic_sizes(df, col="Topic"):
 def preprocess_and_tokenize_text(df, col="text"):
     corpus = []
     punctuation = string.punctuation
-    punctuation.remove(".")
+    punctuation.replace(".","")
     tokenizer = TreebankWordTokenizer()  # RegexpTokenizer(r'\w+')
     stem = GermanStemmer()
 
@@ -370,7 +376,7 @@ def preprocess_and_tokenize_text(df, col="text"):
     for news in df[col]:
         words = []
         news = re.sub('[%s]' % re.escape(r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""), '', news)
-        news = [''.join(c for c in s if c not in punctuation) for s in news]
+        #news = [''.join(c for c in s if c not in punctuation) for s in news]
         news = re.sub(r"^\d+\s|\s\d+\s|\s\d+$", " ", news)
         news = re.sub(r'http\S+\s*', '', news)  # remove URLs
         news = re.sub(r'\b\d+\b', '', news)
