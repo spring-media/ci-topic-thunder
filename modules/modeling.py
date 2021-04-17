@@ -187,7 +187,7 @@ def cluster_and_reduce(embeddings, one_day=False, n_neighbors=15, n_components_c
     print(">> --- Done in {:.1f} seconds ---".format(time.time() - st))
     print(">> Silhouette Coefficient: {}".format(metrics.silhouette_score(umap_embeddings, clusters,metric='cosine')))
 
-    return umap_data, clusters
+    return umap_data,umap_embeddings ,clusters
 
 def cluster(embeddings,**kwargs):
     st = time.time()

@@ -66,10 +66,12 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub('[{}]'.format(re.escape(r'–•™©®●▶︎►…"$%&()*œ†¥+:;µ≤≥æ«‘π<=>[\]^_`‚‘{|}~\'')), '', news)
 
         news = re.sub("bild.de", "", news, flags=re.IGNORECASE)
+        news = re.sub("derStandard.at", "derStandard", news, flags=re.IGNORECASE)
+
         news = re.sub("bildplus", "", news, flags=re.IGNORECASE)
         news = re.sub("bild plus", "", news, flags=re.IGNORECASE)
         # news = re.sub(r"ß", "ss", news)  # Remove ß
-
+        news = re.sub(r'((\d{2}|\d{1}).(\d{2}|\d{1}).\d{4})',"",news,flags=re.MULTILINE)
         # news = re.sub(r"\?", ".", news) # ?
         news = re.sub(r"\!", ".", news)  # !
 
@@ -104,9 +106,13 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub(" {2}", " ", news)  # Remove doube spaces
         news = re.sub(r"\.\.", ".", news)
         news = re.sub(r" \. {2}", ". ", news)
-
+        
+        if news[-1] in ",":
+            news = news[:-1]
+        
         news = news.rstrip().lstrip()
 
+        
         if lower:
             news = news.lower()
         corpus.append(news)
