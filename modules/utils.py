@@ -56,8 +56,9 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
     :return:
     """
     corpus = []
-
-    for news in articles[col].values:
+    
+    for ix,news in enumerate(articles[col].values):
+        original_news= news
         news = re.sub(r" \(\d+\)", "", news)  # Numbers in brackets ie ages
         news = re.sub(r"\d+:+\d+-", "", news)  # Remove scores from i.e 2:3-Sieg
         news = re.sub(r"\(+\d+:+\d\)+", "", news)  # Scores in brackets
@@ -110,9 +111,11 @@ def preprocess_articles_for_bert(articles, col="text", lower=False):
         news = re.sub(r"\.\.", ".", news)
         news = re.sub(r" \. {2}", ". ", news)
         
-        if news[-1] in ",":
-            news = news[:-1]
-        
+        try:
+            if news[-1] in ",":
+                news = news[:-1]
+        except IndexError:
+            print(articles[col].values[ix])
         news = news.rstrip().lstrip()
 
         
@@ -355,7 +358,7 @@ def extract_top_n_words_per_topic(tf_idf, count, docs_per_topic, n=20):
 
 
 def extract_topic_sizes(df, col="Topic"):
-    text_column = "Doc" if "Doc" in df.columns.to_list() else "headline"
+    text_column = "Doc" if "Doc" in df.columns.to_list() else "title"
     topic_sizes = (df.groupby([col])[text_column]
                    .count()
                    .reset_index()
